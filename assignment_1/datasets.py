@@ -6,9 +6,9 @@ class LaserDataset(Dataset):
     """
     Dataset for laser time series data.
     """
-    def __init__(self, data, sequence_length: int, forecast_horizon=1) -> None:
+    def __init__(self, data, window_size: int, forecast_horizon=1) -> None:
         self.data = torch.tensor(data, dtype=torch.float32)
-        self.sequence_length = sequence_length
+        self.sequence_length = window_size
         self.forecast_horizon = forecast_horizon
 
     def __len__(self) -> int:
@@ -18,7 +18,7 @@ class LaserDataset(Dataset):
         input_seq_end = idx + self.sequence_length
         target_idx = input_seq_end + self.forecast_horizon - 1
 
-        X = self.data[idx:input_seq_end]
+        X = self.data[idx:input_seq_end].view(-1)
         y = self.data[target_idx]
 
-        return X.unsqueeze(-1), y
+        return X, y

@@ -40,7 +40,6 @@ class MEGDataset(Dataset):
         indices = np.sort(
             np.random.choice(length, self.num_samples, replace=False)
             )
-        print("Sampled indices:", indices)
         return data[:, indices]
 
     def _normalize_data(self, data: np.array) -> np.array:

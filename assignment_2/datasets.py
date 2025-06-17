@@ -36,15 +36,21 @@ class MEGDataset(Dataset):
         return data, label
 
     def _random_downsample_data(self, data: np.array) -> np.array:
-        length = data.shape[0]
+        length = data.shape[1]
         indices = np.sort(
             np.random.choice(length, self.num_samples, replace=False)
             )
+        print("Sampled indices:", indices)
         return data[:, indices]
 
     def _normalize_data(self, data: np.array) -> np.array:
-        data = (data - data.min()) / (data.max() - data.min())
-        return data
+        data = data * 1e10
+        means = data.mean(axis=1, keepdims=True)
+        stds = data.std(axis=1, keepdims=True)
+        eps = 1e-8
+
+        normalized = (data - means) / (stds + eps)
+        return normalized
 
     def _get_label(self, name: str) -> str:
         clear_name = ''.join(name.split('_')[:-1])

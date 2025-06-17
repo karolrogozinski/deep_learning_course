@@ -105,7 +105,7 @@ def generate_predictions(
             generated.append(next_val.item())
             current_seq = torch.cat([current_seq[:, 1:], next_val], dim=1)
 
-    plt.figure(figsize=(25, 7))
+    plt.figure(figsize=(20, 10))
     plt.plot(range(len(data_tensor)), data_tensor.tolist(),
              label="Training Data")
     plt.plot(range(len(data_tensor), len(data_tensor) + horizon), generated,
@@ -141,7 +141,7 @@ def generate_predictions_with_train_fit(
             generated.append(next_val.item())
             current_seq = torch.cat([current_seq[:, 1:], next_val], dim=1)
 
-    plt.figure(figsize=(25, 7))
+    plt.figure(figsize=(20, 10))
     plt.plot(range(len(data_tensor)), data_tensor.tolist(), label="Training Data")
     plt.plot(range(sequence_length, len(data_tensor)), preds_train, label="Train Fit", color='red')
     plt.plot(range(len(data_tensor), len(data_tensor) + horizon), generated, label="Forecast", color='red')
@@ -177,10 +177,12 @@ def final_model_evaluation(
     mse = mean_squared_error(test_data, predictions)
     mae = mean_absolute_error(test_data, predictions)
 
-    plt.figure(figsize=(25, 7))
+    print(f'MSE: {mse:.4f}, MAE: {mae:.4f}')
+
+    plt.figure(figsize=(20, 10))
     plt.plot(range(horizon), test_data[:horizon].flatten(), label="Test Data")
     plt.plot(range(horizon), predictions, label="Predicted", color='red')
     plt.legend()
-    plt.title(f"Prediction vs Test Data| MSE: {mse:.4f}, MAE: {mae:.4f}")
+    plt.title(f"Prediction vs Test Data")
     plt.grid(True)
     plt.show()

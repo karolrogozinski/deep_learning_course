@@ -1,3 +1,6 @@
+import os
+import pickle
+
 from typing import Callable, Optional, Dict
 
 import h5py
@@ -7,6 +10,7 @@ import matplotlib.pyplot as plt
 
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import Module
 from torch.optim import Optimizer
 
@@ -40,6 +44,12 @@ def train_model(
     valid_losses = list()
     valid_accs = list()
 
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=10,
+        gamma=0.5
+    )
+
     model.train()
     for _ in tqdm(range(epochs)):
         for X, y in train_dataloader:
@@ -58,6 +68,8 @@ def train_model(
         valid_losses.append(valid_metrics[0])
         valid_accs.append(valid_metrics[1])
 
+        scheduler.step()
+
     return train_losses, train_accs, valid_losses, valid_accs
 
 
@@ -73,16 +85,16 @@ def validate_model(
 
     with torch.no_grad():
         for X, y in dataloader:
-            X = X.to(next(model.parameters()).device, dtype=torch.float32)
-            y = y.to(next(model.parameters()).device, dtype=torch.long)
+            # X = X.to(next(model.parameters()).device, dtype=torch.float32)
+            # y = y.to(next(model.parameters()).device, dtype=torch.long)
 
             output = model(X)
             loss = loss_fc(output, y)
             val_loss += loss.item()
 
-            preds = output.argmax(dim=1)
-            correct += (preds == y).sum().item()
-            total += y.size(0)
+            preds = output[0].argmax(dim=1)
+            correct += (preds == y[0]).sum().item()
+            total += y[0].size(0)
 
     avg_loss = val_loss / len(dataloader)
     accuracy = correct / total if total > 0 else 0.0
@@ -97,6 +109,7 @@ def cross_val_model(
         optim_cls: Module,
         dataset_cls: Dataset,
         loss_fc: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        transforms: tuple = None,
         epochs: int = 50,
         model_params: Optional[Dict] = {},
         optim_params: Optional[Dict] = {},
@@ -112,9 +125,9 @@ def cross_val_model(
 
     for split in splits:
         train_dataset = dataset_cls(
-            data_path, mode='train', val_samples=split, **data_params)
+            data_path, transforms=transforms, mode='train', val_samples=split, **data_params)
         valid_dataset = dataset_cls(
-            data_path, mode='valid', val_samples=split, **data_params)
+            data_path, transforms=(), mode='valid', val_samples=split, **data_params)
 
         train_dataloader = DataLoader(
             train_dataset, batch_size=len(train_dataset), drop_last=False)
@@ -198,3 +211,44 @@ def plot_cross_val_metrics(metrics: dict):
 
     plt.tight_layout()
     plt.show()
+
+
+def pickle_norm_data():
+    persons = ('105923', '113922', '164636', '725751', '735148', '707749', '162935')
+    paths_dict = dict()
+
+    for person in persons:
+        person_files = list()
+        inner_file_paths = [
+            os.path.join('../data_2/Intra/train', fname) for fname in os.listdir('../data_2/Intra/train')
+        ]
+        cross_file_paths = [
+            os.path.join('../data_2/Cross/train', fname) for fname in os.listdir('../data_2/Cross/train')
+        ] + [
+            os.path.join('../data_2/Cross/test1', fname) for fname in os.listdir('../data_2/Cross/test1')
+        ] + [
+            os.path.join('../data_2/Cross/test2', fname) for fname in os.listdir('../data_2/Cross/test2')
+        ] + [
+            os.path.join('../data_2/Cross/test3', fname) for fname in os.listdir('../data_2/Cross/test3')
+        ]
+
+        person_files = [file_path for file_path in inner_file_paths + cross_file_paths if person in file_path]
+        paths_dict[person] = person_files
+
+    norm_dict = dict()
+
+    for person, paths in paths_dict.items():
+        all_data = []
+
+        for path in paths:
+            data, _ = get_data_matrix(path)
+            all_data.append(data)
+        all_data = np.stack(all_data, axis=0)
+
+        mean = all_data.mean(axis=(0, 2))
+        std = all_data.std(axis=(0, 2))
+
+        norm_dict[person] = {"mean": mean, "std": std}
+
+    with open("norm_dict.pkl", "wb") as f:
+        pickle.dump(norm_dict, f)
